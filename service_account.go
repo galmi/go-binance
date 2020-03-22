@@ -9,19 +9,20 @@ import (
 )
 
 type rawExecutedOrder struct {
-	Symbol        string  `json:"symbol"`
-	OrderID       int     `json:"orderId"`
-	ClientOrderID string  `json:"clientOrderId"`
-	Price         string  `json:"price"`
-	OrigQty       string  `json:"origQty"`
-	ExecutedQty   string  `json:"executedQty"`
-	Status        string  `json:"status"`
-	TimeInForce   string  `json:"timeInForce"`
-	Type          string  `json:"type"`
-	Side          string  `json:"side"`
-	StopPrice     string  `json:"stopPrice"`
-	IcebergQty    string  `json:"icebergQty"`
-	Time          float64 `json:"time"`
+	Symbol             string  `json:"symbol"`
+	OrderID            int     `json:"orderId"`
+	ClientOrderID      string  `json:"clientOrderId"`
+	Price              string  `json:"price"`
+	CumulativeQuoteQty string  `json:"cummulativeQuoteQty"`
+	OrigQty            string  `json:"origQty"`
+	ExecutedQty        string  `json:"executedQty"`
+	Status             string  `json:"status"`
+	TimeInForce        string  `json:"timeInForce"`
+	Type               string  `json:"type"`
+	Side               string  `json:"side"`
+	StopPrice          string  `json:"stopPrice"`
+	IcebergQty         string  `json:"icebergQty"`
+	Time               float64 `json:"time"`
 }
 
 func (as *apiService) NewOrder(or NewOrderRequest) (*ProcessedOrder, error) {
@@ -29,9 +30,13 @@ func (as *apiService) NewOrder(or NewOrderRequest) (*ProcessedOrder, error) {
 	params["symbol"] = or.Symbol
 	params["side"] = string(or.Side)
 	params["type"] = string(or.Type)
-	params["timeInForce"] = string(or.TimeInForce)
+	if or.TimeInForce != "" {
+		params["timeInForce"] = string(or.TimeInForce)
+	}
 	params["quantity"] = strconv.FormatFloat(or.Quantity, 'f', -1, 64)
-	params["price"] = strconv.FormatFloat(or.Price, 'f', -1, 64)
+	if or.Price > 0.0 {
+		params["price"] = strconv.FormatFloat(or.Price, 'f', -1, 64)
+	}
 	params["timestamp"] = strconv.FormatInt(unixMillis(or.Timestamp), 10)
 	if or.NewClientOrderID != "" {
 		params["newClientOrderId"] = or.NewClientOrderID
@@ -621,24 +626,30 @@ func executedOrderFromRaw(reo *rawExecutedOrder) (*ExecutedOrder, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse Order.IcebergQty")
 	}
+	cumulativeQuoteQty, err := strconv.ParseFloat(reo.CumulativeQuoteQty, 64)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot parse Order.CumulativeQuoteQty")
+	}
+
 	t, err := timeFromUnixTimestampFloat(reo.Time)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse Order.CloseTime")
 	}
 
 	return &ExecutedOrder{
-		Symbol:        reo.Symbol,
-		OrderID:       reo.OrderID,
-		ClientOrderID: reo.ClientOrderID,
-		Price:         price,
-		OrigQty:       origQty,
-		ExecutedQty:   execQty,
-		Status:        OrderStatus(reo.Status),
-		TimeInForce:   TimeInForce(reo.TimeInForce),
-		Type:          OrderType(reo.Type),
-		Side:          OrderSide(reo.Side),
-		StopPrice:     stopPrice,
-		IcebergQty:    icebergQty,
-		Time:          t,
+		Symbol:             reo.Symbol,
+		OrderID:            reo.OrderID,
+		ClientOrderID:      reo.ClientOrderID,
+		Price:              price,
+		OrigQty:            origQty,
+		ExecutedQty:        execQty,
+		Status:             OrderStatus(reo.Status),
+		TimeInForce:        TimeInForce(reo.TimeInForce),
+		Type:               OrderType(reo.Type),
+		Side:               OrderSide(reo.Side),
+		StopPrice:          stopPrice,
+		IcebergQty:         icebergQty,
+		Time:               t,
+		CumulativeQuoteQty: cumulativeQuoteQty,
 	}, nil
 }
