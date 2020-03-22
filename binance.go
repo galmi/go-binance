@@ -66,6 +66,18 @@ type Binance interface {
 	KlineWebsocket(kwr KlineWebsocketRequest) (chan *KlineEvent, chan struct{}, error)
 	TradeWebsocket(twr TradeWebsocketRequest) (chan *AggTradeEvent, chan struct{}, error)
 	UserDataWebsocket(udwr UserDataWebsocketRequest) (chan *AccountEvent, chan struct{}, error)
+
+	NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder, error)
+	NewMarginOrderTest(or NewMarginOrderRequest) error
+	QueryMarginOrder(qor QueryOrderRequest) (*ExecutedOrder, error)
+	CancelMarginOrder(cor CancelOrderRequest) (*CanceledOrder, error)
+	OpenMarginOrders(oor OpenOrdersRequest) ([]*ExecutedOrder, error)
+	AllMarginOrders(aor AllOrdersRequest) ([]*ExecutedOrder, error)
+	MarginAccount(ar AccountRequest) (*MarginAccount, error)
+	MyMarginTrades(mtr MyTradesRequest) ([]*Trade, error)
+	AllMarginAssets(ar AccountRequest) ([]*MarginAsset, error)
+	MaxBorrow(mbr MaxMarginRequest) (float64, error)
+	MaxTransfer(mbr MaxMarginRequest) (float64, error)
 }
 
 type binance struct {
@@ -268,6 +280,22 @@ type NewOrderRequest struct {
 	Timestamp        time.Time
 }
 
+// NewMarginOrderRequest represents NewMarginOrder request data.
+type NewMarginOrderRequest struct {
+	Symbol           string
+	Side             OrderSide
+	Type             OrderType
+	Quantity         float64
+	Price            float64
+	StopPrice        float64
+	NewClientOrderID string
+	IcebergQty       float64
+	NewOrderRespType NewOrderRespType
+	SideEffectType   MarginOrderSideEffect
+	TimeInForce      TimeInForce
+	Timestamp        time.Time
+}
+
 // ProcessedOrder represents data from processed order.
 type ProcessedOrder struct {
 	Symbol        string
@@ -297,19 +325,20 @@ type QueryOrderRequest struct {
 
 // ExecutedOrder represents data about executed order.
 type ExecutedOrder struct {
-	Symbol        string
-	OrderID       int
-	ClientOrderID string
-	Price         float64
-	OrigQty       float64
-	ExecutedQty   float64
-	Status        OrderStatus
-	TimeInForce   TimeInForce
-	Type          OrderType
-	Side          OrderSide
-	StopPrice     float64
-	IcebergQty    float64
-	Time          time.Time
+	Symbol             string
+	OrderID            int
+	ClientOrderID      string
+	Price              float64
+	OrigQty            float64
+	ExecutedQty        float64
+	Status             OrderStatus
+	TimeInForce        TimeInForce
+	Type               OrderType
+	Side               OrderSide
+	StopPrice          float64
+	IcebergQty         float64
+	CumulativeQuoteQty float64
+	Time               time.Time
 }
 
 // QueryOrder returns data about existing order.
@@ -382,6 +411,40 @@ type Account struct {
 	CanWithdraw     bool
 	CanDeposit      bool
 	Balances        []*Balance
+}
+
+type MarginAccount struct {
+	BorrowEnabled       bool
+	MarginLevel         float64
+	TotalAssetOfBtc     float64
+	TotalLiabilityOfBtc float64
+	TotalNetAssetOfBtc  float64
+	TradeEnabled        bool
+	TransferEnabled     bool
+	Assets              []*Asset
+}
+
+type Asset struct {
+	Asset    string
+	Borrowed float64
+	Free     float64
+	Interest float64
+	Locked   float64
+	NetAsset float64
+}
+
+type MarginAsset struct {
+	Asset         string
+	CanBorrow     bool
+	CanMortage    bool
+	UserMinBorrow float64
+	UserMinRepay  float64
+}
+
+type MaxMarginRequest struct {
+	Symbol     string
+	RecvWindow time.Duration
+	Timestamp  time.Time
 }
 
 type AccountEvent struct {
@@ -546,4 +609,47 @@ type UserDataWebsocketRequest struct {
 
 func (b *binance) UserDataWebsocket(udwr UserDataWebsocketRequest) (chan *AccountEvent, chan struct{}, error) {
 	return b.Service.UserDataWebsocket(udwr)
+}
+
+func (b *binance) NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder, error) {
+	return b.Service.NewMarginOrder(or)
+}
+
+func (b *binance) NewMarginOrderTest(or NewMarginOrderRequest) error {
+	return b.Service.NewMarginOrderTest(or)
+}
+
+func (b *binance) QueryMarginOrder(qor QueryOrderRequest) (*ExecutedOrder, error) {
+	return b.Service.QueryMarginOrder(qor)
+}
+
+func (b *binance) CancelMarginOrder(cor CancelOrderRequest) (*CanceledOrder, error) {
+	return b.Service.CancelMarginOrder(cor)
+}
+
+func (b *binance) OpenMarginOrders(oor OpenOrdersRequest) ([]*ExecutedOrder, error) {
+	return b.Service.OpenMarginOrders(oor)
+}
+
+func (b *binance) AllMarginOrders(aor AllOrdersRequest) ([]*ExecutedOrder, error) {
+	return b.Service.AllMarginOrders(aor)
+}
+
+func (b *binance) MarginAccount(ar AccountRequest) (*MarginAccount, error) {
+	return b.Service.MarginAccount(ar)
+}
+
+func (b *binance) MyMarginTrades(mtr MyTradesRequest) ([]*Trade, error) {
+	return b.Service.MyMarginTrades(mtr)
+}
+
+func (b *binance) AllMarginAssets(ar AccountRequest) ([]*MarginAsset, error) {
+	return b.Service.AllMarginAssets(ar)
+}
+
+func (b *binance) MaxBorrow(mbr MaxMarginRequest) (float64, error) {
+	return b.Service.MaxBorrow(mbr)
+}
+func (b *binance) MaxTransfer(mbr MaxMarginRequest) (float64, error) {
+	return b.Service.MaxTransfer(mbr)
 }

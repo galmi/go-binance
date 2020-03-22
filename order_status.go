@@ -9,6 +9,10 @@ type OrderType string
 // OrderSide represents order side enum.
 type OrderSide string
 
+type MarginOrderSideEffect string
+
+type NewOrderRespType string
+
 var (
 	StatusNew             = OrderStatus("NEW")
 	StatusPartiallyFilled = OrderStatus("PARTIALLY_FILLED")
@@ -23,4 +27,12 @@ var (
 
 	SideBuy  = OrderSide("BUY")
 	SideSell = OrderSide("SELL")
+
+	SideEffectNo        = MarginOrderSideEffect("NO_SIDE_EFFECT")
+	SideEffectMarginBuy = MarginOrderSideEffect("MARGIN_BUY")
+	SideEffectAutoRepay = MarginOrderSideEffect("AUTO_REPAY")
+
+	OrderRespTypeAck    = NewOrderRespType("ACK")
+	OrderRespTypeResult = NewOrderRespType("RESULT")
+	OrderRespTypeFull   = NewOrderRespType("FULL")
 )

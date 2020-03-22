@@ -46,6 +46,18 @@ type Service interface {
 	KlineWebsocket(kwr KlineWebsocketRequest) (chan *KlineEvent, chan struct{}, error)
 	TradeWebsocket(twr TradeWebsocketRequest) (chan *AggTradeEvent, chan struct{}, error)
 	UserDataWebsocket(udwr UserDataWebsocketRequest) (chan *AccountEvent, chan struct{}, error)
+
+	NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder, error)
+	NewMarginOrderTest(or NewMarginOrderRequest) error
+	QueryMarginOrder(qor QueryOrderRequest) (*ExecutedOrder, error)
+	CancelMarginOrder(cor CancelOrderRequest) (*CanceledOrder, error)
+	OpenMarginOrders(oor OpenOrdersRequest) ([]*ExecutedOrder, error)
+	AllMarginOrders(aor AllOrdersRequest) ([]*ExecutedOrder, error)
+	MarginAccount(ar AccountRequest) (*MarginAccount, error)
+	MyMarginTrades(mtr MyTradesRequest) ([]*Trade, error)
+	AllMarginAssets(ar AccountRequest) ([]*MarginAsset, error)
+	MaxBorrow(mbr MaxMarginRequest) (float64, error)
+	MaxTransfer(mbr MaxMarginRequest) (float64, error)
 }
 
 type apiService struct {
