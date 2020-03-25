@@ -31,6 +31,9 @@ func (as *apiService) NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder,
 	if or.TimeInForce != "" {
 		params["timeInForce"] = string(or.TimeInForce)
 	}
+	if or.NewOrderRespType != "" {
+		params["newOrderRespType"] = string(or.NewOrderRespType)
+	}
 	params["timestamp"] = strconv.FormatInt(unixMillis(or.Timestamp), 10)
 
 	res, err := as.request("POST", "sapi/v1/margin/order", params, true, true)
@@ -48,10 +51,18 @@ func (as *apiService) NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder,
 	}
 
 	rawOrder := struct {
-		Symbol        string  `json:"symbol"`
-		OrderID       int64   `json:"orderId"`
-		ClientOrderID string  `json:"clientOrderId"`
-		TransactTime  float64 `json:"transactTime"`
+		Symbol             string      `json:"symbol"`
+		OrderID            int64       `json:"orderId"`
+		ClientOrderID      string      `json:"clientOrderId"`
+		TransactTime       float64     `json:"transactTime"`
+		Price              json.Number `json:"price"`
+		OrigQty            json.Number `json:"origQty"`
+		ExecutedQty        json.Number `json:"executedQty"`
+		CumulativeQuoteQty json.Number `json:"cummulativeQuoteQty"`
+		Status             OrderStatus `json:"status"`
+		TimeInForce        TimeInForce `json:"timeInForce"`
+		Type               OrderType   `json:"type"`
+		Side               OrderSide   `json:"side"`
 	}{}
 	if err := json.Unmarshal(textRes, &rawOrder); err != nil {
 		return nil, errors.Wrap(err, "rawOrder unmarshal failed")
@@ -62,11 +73,23 @@ func (as *apiService) NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder,
 		return nil, err
 	}
 
+	price, _ := rawOrder.Price.Float64()
+	origQty, _ := rawOrder.OrigQty.Float64()
+	executedQty, _ := rawOrder.ExecutedQty.Float64()
+	cumulativeQuoteQty, _ := rawOrder.CumulativeQuoteQty.Float64()
 	return &ProcessedOrder{
-		Symbol:        rawOrder.Symbol,
-		OrderID:       rawOrder.OrderID,
-		ClientOrderID: rawOrder.ClientOrderID,
-		TransactTime:  t,
+		Symbol:             rawOrder.Symbol,
+		OrderID:            rawOrder.OrderID,
+		ClientOrderID:      rawOrder.ClientOrderID,
+		TransactTime:       t,
+		Price:              price,
+		OrigQty:            origQty,
+		ExecutedQty:        executedQty,
+		CumulativeQuoteQty: cumulativeQuoteQty,
+		Status:             rawOrder.Status,
+		TimeInForce:        rawOrder.TimeInForce,
+		Type:               rawOrder.Type,
+		Side:               rawOrder.Side,
 	}, nil
 }
 
@@ -287,7 +310,7 @@ func (as *apiService) AllMarginOrders(aor AllOrdersRequest) ([]*ExecutedOrder, e
 
 func (as *apiService) MarginAccount(ar AccountRequest) (*MarginAccount, error) {
 	params := make(map[string]string)
-	params["timestamp"] = strconv.FormatInt(unixMillis(ar.Timestamp), 10)
+	params["timestamp"] = strconv.FormatInt(ar.Timestamp.Unix()*1000, 10)
 	if ar.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(ar.RecvWindow), 10)
 	}

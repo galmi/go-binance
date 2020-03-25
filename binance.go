@@ -277,6 +277,7 @@ type NewOrderRequest struct {
 	NewClientOrderID string
 	StopPrice        float64
 	IcebergQty       float64
+	NewOrderRespType NewOrderRespType
 	Timestamp        time.Time
 }
 
@@ -298,10 +299,18 @@ type NewMarginOrderRequest struct {
 
 // ProcessedOrder represents data from processed order.
 type ProcessedOrder struct {
-	Symbol        string
-	OrderID       int64
-	ClientOrderID string
-	TransactTime  time.Time
+	Symbol             string
+	OrderID            int64
+	ClientOrderID      string
+	TransactTime       time.Time
+	Price              float64
+	OrigQty            float64
+	ExecutedQty        float64
+	CumulativeQuoteQty float64
+	Status             OrderStatus
+	TimeInForce        TimeInForce
+	Type               OrderType
+	Side               OrderSide
 }
 
 // NewOrder places new order and returns ProcessedOrder.

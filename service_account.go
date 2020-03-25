@@ -47,6 +47,9 @@ func (as *apiService) NewOrder(or NewOrderRequest) (*ProcessedOrder, error) {
 	if or.IcebergQty != 0 {
 		params["icebergQty"] = strconv.FormatFloat(or.IcebergQty, 'f', -1, 64)
 	}
+	if or.NewOrderRespType != "" {
+		params["newOrderRespType"] = string(or.NewOrderRespType)
+	}
 
 	res, err := as.request("POST", "api/v3/order", params, true, true)
 	if err != nil {
@@ -63,10 +66,18 @@ func (as *apiService) NewOrder(or NewOrderRequest) (*ProcessedOrder, error) {
 	}
 
 	rawOrder := struct {
-		Symbol        string  `json:"symbol"`
-		OrderID       int64   `json:"orderId"`
-		ClientOrderID string  `json:"clientOrderId"`
-		TransactTime  float64 `json:"transactTime"`
+		Symbol             string      `json:"symbol"`
+		OrderID            int64       `json:"orderId"`
+		ClientOrderID      string      `json:"clientOrderId"`
+		TransactTime       float64     `json:"transactTime"`
+		Price              json.Number `json:"price"`
+		OrigQty            json.Number `json:"origQty"`
+		ExecutedQty        json.Number `json:"executedQty"`
+		CumulativeQuoteQty json.Number `json:"cummulativeQuoteQty"`
+		Status             OrderStatus `json:"status"`
+		TimeInForce        TimeInForce `json:"timeInForce"`
+		Type               OrderType   `json:"type"`
+		Side               OrderSide   `json:"side"`
 	}{}
 	if err := json.Unmarshal(textRes, &rawOrder); err != nil {
 		return nil, errors.Wrap(err, "rawOrder unmarshal failed")
@@ -77,11 +88,23 @@ func (as *apiService) NewOrder(or NewOrderRequest) (*ProcessedOrder, error) {
 		return nil, err
 	}
 
+	price, _ := rawOrder.Price.Float64()
+	origQty, _ := rawOrder.OrigQty.Float64()
+	executedQty, _ := rawOrder.ExecutedQty.Float64()
+	cumulativeQuoteQty, _ := rawOrder.CumulativeQuoteQty.Float64()
 	return &ProcessedOrder{
-		Symbol:        rawOrder.Symbol,
-		OrderID:       rawOrder.OrderID,
-		ClientOrderID: rawOrder.ClientOrderID,
-		TransactTime:  t,
+		Symbol:             rawOrder.Symbol,
+		OrderID:            rawOrder.OrderID,
+		ClientOrderID:      rawOrder.ClientOrderID,
+		TransactTime:       t,
+		Price:              price,
+		OrigQty:            origQty,
+		ExecutedQty:        executedQty,
+		CumulativeQuoteQty: cumulativeQuoteQty,
+		Status:             rawOrder.Status,
+		TimeInForce:        rawOrder.TimeInForce,
+		Type:               rawOrder.Type,
+		Side:               rawOrder.Side,
 	}, nil
 }
 

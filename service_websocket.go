@@ -110,11 +110,10 @@ func (as *apiService) KlineWebsocket(kwr KlineWebsocketRequest) (chan *KlineEven
 					return
 				}
 				rawKline := struct {
-					Type     string  `json:"e"`
-					Time     float64 `json:"E"`
-					Symbol   string  `json:"S"`
-					OpenTime float64 `json:"t"`
-					Kline    struct {
+					Type   string  `json:"e"`
+					Time   float64 `json:"E"`
+					Symbol string  `json:"s"`
+					Kline  struct {
 						Interval                 string  `json:"i"`
 						FirstTradeID             int64   `json:"f"`
 						LastTradeID              int64   `json:"L"`
@@ -131,10 +130,18 @@ func (as *apiService) KlineWebsocket(kwr KlineWebsocketRequest) (chan *KlineEven
 						TakerBuyBaseAssetVolume  string  `json:"V"`
 						TakerBuyQuoteAssetVolume string  `json:"Q"`
 					} `json:"k"`
+					Error struct {
+						Code int64  `json:"code"`
+						Msg  string `json:"msg"`
+					} `json:"error"`
 				}{}
 				if err := json.Unmarshal(message, &rawKline); err != nil {
 					level.Error(as.Logger).Log("wsUnmarshal", err, "body", string(message))
 					return
+				}
+				if rawKline.Error.Code > 0 {
+					level.Warn(as.Logger).Log("rawKline", rawKline.Error.Code, rawKline.Error.Msg)
+					continue
 				}
 				t, err := timeFromUnixTimestampFloat(rawKline.Time)
 				if err != nil {
