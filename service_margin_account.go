@@ -34,6 +34,9 @@ func (as *apiService) NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder,
 	if or.NewOrderRespType != "" {
 		params["newOrderRespType"] = string(or.NewOrderRespType)
 	}
+	if or.IsIsolated {
+		params["isIsolated"] = "TRUE"
+	}
 	params["timestamp"] = strconv.FormatInt(unixMillis(or.Timestamp), 10)
 
 	res, err := as.request("POST", "sapi/v1/margin/order", params, true, true)
@@ -63,6 +66,7 @@ func (as *apiService) NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder,
 		TimeInForce        TimeInForce `json:"timeInForce"`
 		Type               OrderType   `json:"type"`
 		Side               OrderSide   `json:"side"`
+		IsIsolated         bool        `json:"isIsolated"`
 	}{}
 	if err := json.Unmarshal(textRes, &rawOrder); err != nil {
 		return nil, errors.Wrap(err, "rawOrder unmarshal failed")
@@ -90,6 +94,7 @@ func (as *apiService) NewMarginOrder(or NewMarginOrderRequest) (*ProcessedOrder,
 		TimeInForce:        rawOrder.TimeInForce,
 		Type:               rawOrder.Type,
 		Side:               rawOrder.Side,
+		IsIsolated:         rawOrder.IsIsolated,
 	}, nil
 }
 
@@ -116,6 +121,9 @@ func (as *apiService) NewMarginOrderTest(or NewMarginOrderRequest) error {
 	}
 	if or.TimeInForce != "" {
 		params["timeInForce"] = string(or.TimeInForce)
+	}
+	if or.IsIsolated {
+		params["isIsolated"] = "TRUE"
 	}
 	params["timestamp"] = strconv.FormatInt(unixMillis(or.Timestamp), 10)
 
@@ -144,6 +152,9 @@ func (as *apiService) QueryMarginOrder(qor QueryOrderRequest) (*ExecutedOrder, e
 	}
 	if qor.OrigClientOrderID != "" {
 		params["origClientOrderId"] = qor.OrigClientOrderID
+	}
+	if qor.IsIsolated {
+		params["isIsolated"] = "TRUE"
 	}
 	if qor.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(qor.RecvWindow), 10)
@@ -188,6 +199,9 @@ func (as *apiService) CancelMarginOrder(cor CancelOrderRequest) (*CanceledOrder,
 	if cor.NewClientOrderID != "" {
 		params["newClientOrderId"] = cor.NewClientOrderID
 	}
+	if cor.IsIsolated {
+		params["isIsolated"] = "TRUE"
+	}
 	if cor.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(cor.RecvWindow), 10)
 	}
@@ -228,6 +242,9 @@ func (as *apiService) OpenMarginOrders(oor OpenOrdersRequest) ([]*ExecutedOrder,
 	params := make(map[string]string)
 	params["symbol"] = oor.Symbol
 	params["timestamp"] = strconv.FormatInt(unixMillis(oor.Timestamp), 10)
+	if oor.IsIsolated {
+		params["isIsolated"] = "TRUE"
+	}
 	if oor.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(oor.RecvWindow), 10)
 	}
@@ -267,6 +284,9 @@ func (as *apiService) AllMarginOrders(aor AllOrdersRequest) ([]*ExecutedOrder, e
 	params := make(map[string]string)
 	params["symbol"] = aor.Symbol
 	params["timestamp"] = strconv.FormatInt(unixMillis(aor.Timestamp), 10)
+	if aor.IsIsolated {
+		params["isIsolated"] = "TRUE"
+	}
 	if aor.OrderID != 0 {
 		params["orderId"] = strconv.FormatInt(aor.OrderID, 10)
 	}
@@ -314,8 +334,11 @@ func (as *apiService) MarginAccount(ar AccountRequest) (*MarginAccount, error) {
 	if ar.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(ar.RecvWindow), 10)
 	}
-
-	res, err := as.request("GET", "sapi/v1/margin/account", params, true, true)
+	endpoint := "sapi/v1/margin/account"
+	if ar.IsIsolated {
+		endpoint = "sapi/v1/margin/isolated/account"
+	}
+	res, err := as.request("GET", endpoint, params, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +368,25 @@ func (as *apiService) MarginAccount(ar AccountRequest) (*MarginAccount, error) {
 			Locked   json.Number `json:"locked"`
 			NetAsset json.Number `json:"netAsset"`
 		} `json:"userAssets"`
+		Assets []struct {
+			Symbol struct {
+				Asset    string      `json:"asset"`
+				Borrowed json.Number `json:"borrowed"`
+				Free     json.Number `json:"free"`
+				Interest json.Number `json:"interest"`
+				Locked   json.Number `json:"locked"`
+				NetAsset json.Number `json:"netAsset"`
+			} `json:"baseAsset"`
+			BaseSymbol struct {
+				Asset    string      `json:"asset"`
+				Borrowed json.Number `json:"borrowed"`
+				Free     json.Number `json:"free"`
+				Interest json.Number `json:"interest"`
+				Locked   json.Number `json:"locked"`
+				NetAsset json.Number `json:"netAsset"`
+			} `json:"quoteAsset"`
+			MarginLevel json.Number `json:"marginLevel"`
+		} `json:"assets"`
 	}{}
 	if err := json.Unmarshal(textRes, &rawAccount); err != nil {
 		return nil, errors.Wrap(err, "rawAccount unmarshal failed")
@@ -378,6 +420,35 @@ func (as *apiService) MarginAccount(ar AccountRequest) (*MarginAccount, error) {
 			NetAsset: netAsset,
 		})
 	}
+	for _, b := range rawAccount.Assets {
+		borrowed, _ := b.Symbol.Borrowed.Float64()
+		free, _ := b.Symbol.Free.Float64()
+		interest, _ := b.Symbol.Interest.Float64()
+		locked, _ := b.Symbol.Locked.Float64()
+		netAsset, _ := b.Symbol.NetAsset.Float64()
+		acc.Assets = append(acc.Assets, &Asset{
+			Asset:    b.Symbol.Asset,
+			Borrowed: borrowed,
+			Free:     free,
+			Interest: interest,
+			Locked:   locked,
+			NetAsset: netAsset,
+		})
+
+		borrowed, _ = b.BaseSymbol.Borrowed.Float64()
+		free, _ = b.BaseSymbol.Free.Float64()
+		interest, _ = b.BaseSymbol.Interest.Float64()
+		locked, _ = b.BaseSymbol.Locked.Float64()
+		netAsset, _ = b.BaseSymbol.NetAsset.Float64()
+		acc.Assets = append(acc.Assets, &Asset{
+			Asset:    b.BaseSymbol.Asset,
+			Borrowed: borrowed,
+			Free:     free,
+			Interest: interest,
+			Locked:   locked,
+			NetAsset: netAsset,
+		})
+	}
 
 	return acc, nil
 }
@@ -386,6 +457,9 @@ func (as *apiService) MyMarginTrades(mtr MyTradesRequest) ([]*Trade, error) {
 	params := make(map[string]string)
 	params["symbol"] = mtr.Symbol
 	params["timestamp"] = strconv.FormatInt(unixMillis(mtr.Timestamp), 10)
+	if mtr.IsIsolated {
+		params["isIsolated"] = "TRUE"
+	}
 	if mtr.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(mtr.RecvWindow), 10)
 	}
@@ -410,7 +484,7 @@ func (as *apiService) MyMarginTrades(mtr MyTradesRequest) ([]*Trade, error) {
 		return nil, as.handleError(textRes)
 	}
 
-	rawTrades := []struct {
+	var rawTrades []struct {
 		ID              int64   `json:"id"`
 		Price           string  `json:"price"`
 		Qty             string  `json:"qty"`
@@ -420,7 +494,8 @@ func (as *apiService) MyMarginTrades(mtr MyTradesRequest) ([]*Trade, error) {
 		IsBuyer         bool    `json:"isBuyer"`
 		IsMaker         bool    `json:"isMaker"`
 		IsBestMatch     bool    `json:"isBestMatch"`
-	}{}
+		IsIsolated      bool    `json:"isIsolated"`
+	}
 	if err := json.Unmarshal(textRes, &rawTrades); err != nil {
 		return nil, errors.Wrap(err, "rawTrades unmarshal failed")
 	}
@@ -453,6 +528,7 @@ func (as *apiService) MyMarginTrades(mtr MyTradesRequest) ([]*Trade, error) {
 			IsBuyer:         rt.IsBuyer,
 			IsMaker:         rt.IsMaker,
 			IsBestMatch:     rt.IsBestMatch,
+			IsIsolated:      rt.IsIsolated,
 		})
 	}
 	return tc, nil
@@ -510,6 +586,9 @@ func (as *apiService) AllMarginAssets(ar AccountRequest) ([]*MarginAsset, error)
 func (as *apiService) MaxBorrow(mbr MaxMarginRequest) (float64, error) {
 	params := make(map[string]string)
 	params["asset"] = mbr.Symbol
+	if mbr.IsIsolated {
+		params["isolatedSymbol"] = mbr.PairId
+	}
 	params["timestamp"] = strconv.FormatInt(unixMillis(mbr.Timestamp), 10)
 	if mbr.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(mbr.RecvWindow), 10)
@@ -543,6 +622,9 @@ func (as *apiService) MaxBorrow(mbr MaxMarginRequest) (float64, error) {
 func (as *apiService) MaxTransfer(mbr MaxMarginRequest) (float64, error) {
 	params := make(map[string]string)
 	params["asset"] = mbr.Symbol
+	if mbr.IsIsolated {
+		params["isolatedSymbol"] = mbr.PairId
+	}
 	params["timestamp"] = strconv.FormatInt(unixMillis(mbr.Timestamp), 10)
 	if mbr.RecvWindow != 0 {
 		params["recvWindow"] = strconv.FormatInt(recvWindow(mbr.RecvWindow), 10)

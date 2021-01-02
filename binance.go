@@ -292,6 +292,7 @@ type NewMarginOrderRequest struct {
 	NewClientOrderID string
 	IcebergQty       float64
 	NewOrderRespType NewOrderRespType
+	IsIsolated       bool
 	SideEffectType   MarginOrderSideEffect
 	TimeInForce      TimeInForce
 	Timestamp        time.Time
@@ -311,6 +312,7 @@ type ProcessedOrder struct {
 	TimeInForce        TimeInForce
 	Type               OrderType
 	Side               OrderSide
+	IsIsolated         bool
 }
 
 // NewOrder places new order and returns ProcessedOrder.
@@ -328,6 +330,7 @@ type QueryOrderRequest struct {
 	Symbol            string
 	OrderID           int64
 	OrigClientOrderID string
+	IsIsolated        bool
 	RecvWindow        time.Duration
 	Timestamp         time.Time
 }
@@ -361,6 +364,7 @@ type CancelOrderRequest struct {
 	OrderID           int64
 	OrigClientOrderID string
 	NewClientOrderID  string
+	IsIsolated        bool
 	RecvWindow        time.Duration
 	Timestamp         time.Time
 }
@@ -381,6 +385,7 @@ func (b *binance) CancelOrder(cor CancelOrderRequest) (*CanceledOrder, error) {
 // OpenOrdersRequest represents OpenOrders request data.
 type OpenOrdersRequest struct {
 	Symbol     string
+	IsIsolated bool
 	RecvWindow time.Duration
 	Timestamp  time.Time
 }
@@ -395,6 +400,7 @@ type AllOrdersRequest struct {
 	Symbol     string
 	OrderID    int64
 	Limit      int
+	IsIsolated bool
 	RecvWindow time.Duration
 	Timestamp  time.Time
 }
@@ -407,6 +413,7 @@ func (b *binance) AllOrders(aor AllOrdersRequest) ([]*ExecutedOrder, error) {
 // AccountRequest represents Account request data.
 type AccountRequest struct {
 	RecvWindow time.Duration
+	IsIsolated bool
 	Timestamp  time.Time
 }
 
@@ -452,6 +459,8 @@ type MarginAsset struct {
 
 type MaxMarginRequest struct {
 	Symbol     string
+	PairId     string
+	IsIsolated bool
 	RecvWindow time.Duration
 	Timestamp  time.Time
 }
@@ -478,6 +487,7 @@ type MyTradesRequest struct {
 	Symbol     string
 	Limit      int
 	FromID     int64
+	IsIsolated bool
 	RecvWindow time.Duration
 	Timestamp  time.Time
 }
@@ -493,6 +503,7 @@ type Trade struct {
 	IsBuyer         bool
 	IsMaker         bool
 	IsBestMatch     bool
+	IsIsolated      bool
 }
 
 // MyTrades list user's trades.
